@@ -23,7 +23,7 @@
       self.userInput = input;
       self.tags = [];
       self.container = $('<div class="taglist-container"/>')
-                         .insertAfter(self.input);
+                         .insertAfter(self.userInput);
 
       // make the actual tag field hidden and set the text field to just be used
       // for the front-end.
