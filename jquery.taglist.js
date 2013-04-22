@@ -11,18 +11,22 @@
       //   errorTagAlreadyExists
     }, options);
     
+    // Sets up everything.
+    // 
+    // Returns void.
     self.init = function () {
+
       // fetch any tags that may currently exist
       var tags = input.val() !== '' ? input.val().replace(/\s/, '').split(',') : [];
 
       // set some things
-      self.input = input;
-      self.userInput = self.input;
+      self.userInput = input;
       self.tags = [];
       self.container = $('<div class="taglist-container"/>')
                          .insertAfter(self.input);
 
-      // make the tag input a hidden field
+      // make the actual tag field hidden and set the text field to just be used
+      // for the front-end.
       self.input = $('<input type="hidden"/>')
                      .attr({
                        'name': self.userInput.attr('name')
@@ -34,8 +38,29 @@
       self.container.append($('<div class="taglist-listing"/>'));
 
       // bind stuff
-      self.container.on('click.taglist', 'a', onTagItemClick);
-      self.userInput.on('keydown.taglist', onUserInputKeydown);
+      self.container.on('click.taglist', 'a', function (e) {
+        e.preventDefault();
+
+        if (!self.settings.confirmRemove || confirm('Are you sure you want to remove this tag?')) {
+          self.removeTag($(this).text());
+        }
+      });
+
+      self.userInput.on('keydown.taglist', function (e) {
+        if (e.which === 13 || e.which === 188) { // enter key or comma key
+          e.preventDefault();
+
+          if (self.addTag(self.userInput.val())) {
+            self.userInput.val(""); // reset the input field
+          } else {
+            if (typeof self.settings.errorTagAlreadyExists === 'function') {
+              self.settings.errorTagAlreadyExists.call(self);
+            } else {
+              alert('Error: That tag already exists!');
+            }
+          }
+        }
+      });
 
       // add tags
       if (tags.length > 0) {
@@ -45,7 +70,9 @@
       }
     };
 
-    // Adds a tag
+    // Adds a tag by name
+    // 
+    // Returns true if it was added, false if it wasn't.
     self.addTag = function (tagName) {
       if (typeof tagName !== 'string') return false;
 
@@ -64,6 +91,9 @@
       return true;
     };
 
+    // Removes a tag by name
+    // 
+    // Returns true if it was removed, false if it wasn't.
     self.removeTag = function (tagName) {
       if (typeof tagName !== 'string') return false;
 
@@ -90,39 +120,16 @@
 
     // Private methods
 
-    onTagItemClick = function (e) {
-      e.preventDefault();
-
-      if (!self.settings.confirmRemove || confirm('Are you sure you want to remove this tag?')) {
-        self.removeTag($(this).text());
-      }
-    };
-
-    onUserInputKeydown = function (e) {
-      if (e.which === 13 || e.which === 188) { // enter key or comma key
-        e.preventDefault();
-
-        if (self.addTag(self.userInput.val())) {
-          self.userInput.val(""); // reset the input field
-        } else {
-          if (typeof self.settings.errorTagAlreadyExists === 'function') {
-            self.settings.errorTagAlreadyExists.call(self);
-          } else {
-            alert('Error: That tag already exists!');
-          }
-        }
-      }
-    };
-
-    // Updates the input value
+    // Updates the hidden input's value.
     // 
-    // Returns void
+    // Returns void.
     updateInputValue = function () {
       self.input.val(self.tags.join(','));
     };
-      
+    
+    // Start the damn thing!
     self.init();
-      
+    
     return self;
   };
   
