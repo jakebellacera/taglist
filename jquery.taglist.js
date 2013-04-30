@@ -5,16 +5,17 @@ Version: 0.1
 Docs:    http://github.com/jakebellacera/taglist
 Author:  Jake Bellacera (http://jakebellacera.com)
 */
-   
 
 (function ($) {
   var Taglist = function (input, options) {
     var self = this,
-        onTagItemClick,
-        onUserInputKeydown;
+        updateInputValue,
+        TaglistError;
 
     self.settings = $.extend({
-      confirmRemove: true
+      confirmRemove: true,
+      ignoreCaseWhenAdding: false,
+      regex: /.*/
 
       // these callbacks are available:
       //   errorTagAlreadyExists
@@ -33,6 +34,11 @@ Author:  Jake Bellacera (http://jakebellacera.com)
       self.tags = [];
       self.container = $('<div class="taglist-container"/>')
                          .insertAfter(self.userInput);
+
+      // Pull the pattern off of the input element itself if it's set
+      if (self.userInput.attr('pattern')) {
+        self.settings.regex = new RegExp(self.userInput.attr('pattern'));
+      }
 
       // make the actual tag field hidden and set the text field to just be used
       // for the front-end.
@@ -57,16 +63,19 @@ Author:  Jake Bellacera (http://jakebellacera.com)
 
       self.userInput.on('keydown.taglist', function (e) {
         if (e.which === 13 || e.which === 188) { // enter key or comma key
-          e.preventDefault();
-
-          if (self.addTag(self.userInput.val())) {
-            self.userInput.val(""); // reset the input field
-          } else {
-            if (typeof self.settings.errorTagAlreadyExists === 'function') {
-              self.settings.errorTagAlreadyExists.call(self);
-            } else {
-              alert('Error: That tag already exists!');
+          if (!(e.which === 13 && self.userInput.val() === '')) {
+            try {
+              if (self.addTag(self.userInput.val())) self.userInput.val(""); // reset the input field
+            } catch (error) {
+              if (error.name === 'errorTagAlreadyExists' && typeof self.settings.errorTagAlreadyExists === 'function') {
+                self.settings.errorTagAlreadyExists.call(self);
+              } else {
+                alert(error.message);
+                if (e.which === 188) $(this).val($(this).val().slice(0,-1)); // get rid of that trailing comma
+              }
             }
+
+            e.preventDefault();
           }
         }
       });
@@ -83,11 +92,31 @@ Author:  Jake Bellacera (http://jakebellacera.com)
     // 
     // Returns true if it was added, false if it wasn't.
     self.addTag = function (tagName) {
-      if (typeof tagName !== 'string') return false;
+      var tags = self.tags;
 
+      // Check if the tag is a string
+      if (typeof tagName !== 'string') {
+        throw new TaglistError('Type', 'The tag name must be a string.');
+        return false;
+      }
+
+      // remove whitespace from the tag
       tagName = $.trim(tagName);
 
-      if ($.inArray(tagName, self.tags) !== -1) return false;
+      // if we need to ignore case, just lowercase everything for the test
+      if (!self.settings.ignoreCaseWhenAdding) tags = $.map(self.tags, function (t) { return t.toLowerCase(); });
+
+      // Check if the tag passes the regex test
+      if (!self.settings.regex.test(tagName)) {
+        throw new TaglistError('InvalidTagName', 'The tag "' + tagName + '" is invalid.');
+        return false;
+      }
+
+      // Check if the tag already exists
+      if ($.inArray( (!self.settings.ignoreCaseWhenAdding ? tagName.toLowerCase() : tagName), tags ) !== -1) {
+        throw new TaglistError('TagAlreadyExists', 'The tag "' + tagName + '" already exists.');
+        return false;
+      }
 
       // add it to the tag listing
       self.tags.push(tagName);
@@ -134,6 +163,12 @@ Author:  Jake Bellacera (http://jakebellacera.com)
     // Returns void.
     updateInputValue = function () {
       self.input.val(self.tags.join(','));
+    };
+
+    // Taglist error message object
+    TaglistError = function (name, message) {
+      this.message = message;
+      this.name = 'Taglist' + name + 'Error';
     };
     
     // Start the damn thing!
