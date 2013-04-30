@@ -1,3 +1,12 @@
+/*
+jQuery.taglist
+==============
+Version: 0.1
+Docs:    http://github.com/jakebellacera/taglist
+Author:  Jake Bellacera (http://jakebellacera.com)
+*/
+   
+
 (function ($) {
   var Taglist = function (input, options) {
     var self = this,
